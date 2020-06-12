@@ -16,8 +16,8 @@
 //  methods to avoid argument copying and provide access constraints
 Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 								  const Eigen::VectorXd &trimap,
-								  size_t rows, size_t cols, double eps=1.e-5,
-								  double constraint_coeff=100.0);
+								  size_t rows, size_t cols, double eps=1.,
+								  double constraint_coeff=65536.0);
 
 ImageMatrix read_jpeg(FILE *jpeg_file);
 
@@ -26,16 +26,6 @@ Eigen::VectorXd laplacian_product(const Eigen::MatrixXd &image,
 		  					  	  const Eigen::VectorXd &conjugate,
 								  const SATMatrix &red, const SATMatrix &green, const SATMatrix &blue,
 		  					  	  const size_t &window_radius=1);
-
-double laplacian_product_entry(const Eigen::MatrixXd &image, ImageWindow &window,
-							   const Eigen::VectorXd &conjugate);
-
-Eigen::Vector3d laplacian_slope(const Eigen::MatrixXd &image, ImageWindow &window,
-					   const Eigen::VectorXd &conjugate, double eps);
-
-double laplacian_bias(const Eigen::MatrixXd &image, ImageWindow &window,
-					  const Eigen::VectorXd &conjugate,
-					  const Eigen::Vector3d &slope);
 
 Point deploy_flat_coords(size_t flat_coords, const Point &img_shape);
 
@@ -205,6 +195,7 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 		}
 	}
 
+
 	size_t aaa = rows * cols;
 	Eigen::SparseMatrix<double> constraints_diag(aaa, aaa);
 	for (size_t i = 0; i < rows * cols; ++i)
@@ -212,7 +203,7 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 		constraints_diag.coeffRef(i, i) = (trimap[i] > 0.99 || trimap[i] < 0.01) ? 1 : 0;
 	}
 	Eigen::VectorXd bias = constraint_coeff * (constraints_diag * trimap);
-
+	std::cout << bias << std::endl;
 
 
 
@@ -269,12 +260,13 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 				{
 					Ip[channel] = sat_Ip_cwise[channel].windowSum(left_top, right_bottom);
 					mean[channel] = sat_image[channel].windowSum(left_top, right_bottom) / win_area;
-					cur_slope[channel] = Ip[channel] / win_area - conjugate_mean * mean[channel];
+					cur_slope[channel] = Ip[channel] -  win_area * conjugate_mean * mean[channel];
 				}
 
 
 				Eigen::Matrix3d delta = window_covariances[row][col] + Eigen::Matrix3d::Identity() * eps / win_area;
-				cur_slope = delta.inverse() * cur_slope;
+				Eigen::MatrixXd delta_inv = delta.inverse();
+				cur_slope = delta_inv * cur_slope;
 				for (size_t channel = 0; channel < 3; ++channel)
 					slope_channels[channel](row, col) = cur_slope[channel];
 
@@ -326,8 +318,8 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 		residual -= alpha * conj_solution;
 
 		std::cout << i << std::endl << std::endl;
-//		if (i == 20)
-//			break;
+		if (i == 10)
+			break;
 
 		if (residual.norm() < eps)
 			break;
@@ -336,118 +328,6 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 		conjugate = residual + beta * conjugate;
 	}
 	return solution;
-}
-
-Eigen::VectorXd laplacian_product(const Eigen::MatrixXd &image,
-								  const size_t rows, const size_t cols,
-								  const Eigen::VectorXd &conjugate,
-								  const SATMatrix &red, const SATMatrix &green, const SATMatrix &blue,
-								  const size_t &window_radius)
-{
-	size_t flat_img_size = rows * cols;
-	Eigen::VectorXd product(flat_img_size);
-	Point shape, center;
-	shape << rows, cols;
-	ImageWindow window;
-	for (size_t i = 0; i < flat_img_size; ++i)
-	{
-		center = deploy_flat_coords(i, shape);
-		window = ImageWindow(shape, center, window_radius);
-		product(i) = laplacian_product_entry(image, window, conjugate);
-	}
-	return product;
-}
-
-// TODO const iterator for window and const argument passing
-double laplacian_product_entry(const Eigen::MatrixXd &image, ImageWindow &window,
-							   const Eigen::VectorXd &conjugate)
-{
-	size_t flat_coord;
-	Eigen::Vector3d slope;
-	ImageWindow window_kernel;
-	double bias, entry = 0;
-	for (const auto &coord: window)
-	{
-		Eigen::Vector3d img_i;
-		if (!window.inBounds(coord))
-		{
-			continue;
-		}
-		flat_coord = window.flatCoords(coord);
-		img_i = image.row(flat_coord);
-		window_kernel = ImageWindow(window.getImageShape(), coord, window.getRadius());
-		// TODO adaptive epsilon substitution
-		slope = laplacian_slope(image, window_kernel, conjugate, 0.000001);
-		bias = laplacian_bias(image, window_kernel, conjugate, slope);
-		entry += conjugate(window.flatCoords(window.getCenter())) - (slope.dot(img_i) + bias);
-	}
-	return entry;
-}
-
-// TODO refactor code
-Eigen::Vector3d laplacian_slope(const Eigen::MatrixXd &image, ImageWindow &window,
-							   const Eigen::VectorXd &conjugate, const double eps)
-{
-//	size_t window_area = (2 * window.getRadius() + 1) * (2 * window.getRadius() + 1);
-	size_t window_area = window.getArea();
-	Eigen::Vector3d comulative_image_conj = Eigen::Vector3d::Zero(3);
-	Eigen::Vector3d win_mean = Eigen::Vector3d::Zero(3);
-	Eigen::MatrixXd observations = Eigen::MatrixXd::Zero(0, 3);
-	double conjugate_mean = 0.0;
-	size_t flat_coord, index = 0;
-	for (const auto &coord: window)
-	{
-		double conjugate_i;
-		Eigen::Vector3d img_i;
-//		if (!window.inBounds(coord))
-//		{
-//			continue;
-//		}
-		flat_coord = window.flatCoords(coord);
-		conjugate_i = conjugate[flat_coord];
-		img_i = image.row(flat_coord);
-
-		comulative_image_conj += img_i * conjugate_i;
-		win_mean += img_i;
-		conjugate_mean += conjugate_i;
-
-//		observations.conservativeResize(window_area, Eigen::NoChange);
-		observations.row(index) = img_i;
-		++index;
-	}
-	auto x = observations - Eigen::VectorXd::Ones(window_area) * win_mean.transpose() / static_cast<double>(window_area);
-	Eigen::Matrix3d covariance = x.transpose() * x / static_cast<double>(window_area - 1);
-	Eigen::Matrix3d delta = covariance + Eigen::Matrix3d::Identity() * eps / static_cast<double>(window_area);
-	return  delta.inverse() * (comulative_image_conj - win_mean * conjugate_mean) / static_cast<double>(window_area);
-}
-
-double laplacian_bias(const Eigen::MatrixXd &image, ImageWindow &window,
-					  const Eigen::VectorXd &conjugate,
-					  const Eigen::Vector3d &slope)
-{
-	size_t window_area = 0;
-	Eigen::Vector3d win_mean = Eigen::Vector3d::Zero(3);
-	double conjugate_mean = 0.0;
-	size_t flat_coord;
-	for (const auto &coord: window)
-	{
-		double conjugate_i;
-		Eigen::Vector3d img_i;
-		if (!window.inBounds(coord))
-		{
-			continue;
-		}
-		++window_area;
-		flat_coord = window.flatCoords(coord);
-		conjugate_i = conjugate[flat_coord];
-
-		img_i = image.row(flat_coord);
-		conjugate_mean += conjugate_i;
-		win_mean += img_i;
-	}
-	conjugate_mean /= window_area;
-	win_mean /= window_area;
-	return conjugate_mean - slope.dot(win_mean);
 }
 
 Point deploy_flat_coords(const size_t flat_coords, const Point &img_shape)

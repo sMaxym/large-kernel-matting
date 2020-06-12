@@ -26,6 +26,6 @@ double SATMatrix::windowSum(const std::pair<size_t, size_t> &origin,
 	double sum = m_sat(end_row, end_col);
 	sum -= orig_row > 0 ? m_sat(orig_row - 1, end_col) : 0;
 	sum -= orig_col > 0 ? m_sat(end_row, orig_col - 1) : 0;
-	sum += orig_col > 0 && orig_row > 0 ? m_sat(end_row - 1, orig_col - 1) : 0;
+	sum += orig_col > 0 && orig_row > 0 ? m_sat(orig_row - 1, orig_col - 1) : 0;
 	return sum;
 }
