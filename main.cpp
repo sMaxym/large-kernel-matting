@@ -85,6 +85,13 @@ int main(int argc, char* argv[])
 	mat /= 255;
 	trimap /= 255;
 
+//	Eigen::MatrixXd test_mat(3,4);
+//	test_mat << -0.5,1.,7.,0.3,
+//	            3.5,-2.,0.4,1.,
+//	            2.,3.,5.,-0.7;
+//	SATMatrix sat_test(test_mat);
+
+
 	Eigen::VectorXd alpha = CGLaplacianSolver(mat, trimap, im.height(), im.width());
 	alpha = (alpha - Eigen::VectorXd::Ones(alpha.rows()) * alpha.minCoeff());
 	alpha = alpha / alpha.maxCoeff() * 255;
@@ -149,7 +156,7 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 {
 	// TODO global variables
 	const double zero_eps = 0.00001;
-	const size_t radius = 1;
+	const size_t radius = 25, iterations = 20;
 	using vec = Eigen::VectorXd;
 
 	std::vector<SATMatrix> sat_image, sat_Ip_cwise, sat_slope;
@@ -203,22 +210,18 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 		constraints_diag.coeffRef(i, i) = (trimap[i] > 0.99 || trimap[i] < 0.01) ? 1 : 0;
 	}
 	Eigen::VectorXd bias = constraint_coeff * (constraints_diag * trimap);
-	std::cout << bias << std::endl;
 
 
 
 
 
 
+	// CG START
 	size_t n_size = bias.size();
 	double alpha, beta;
 	vec solution(n_size);
 	solution.fill(0.);
 	vec residual = bias, conjugate = bias;
-
-
-	// CG START
-
 	for (size_t i = 0; i < n_size; ++i)
 	{
 		vec residual_prev = residual;
@@ -260,7 +263,7 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 				{
 					Ip[channel] = sat_Ip_cwise[channel].windowSum(left_top, right_bottom);
 					mean[channel] = sat_image[channel].windowSum(left_top, right_bottom) / win_area;
-					cur_slope[channel] = Ip[channel] -  win_area * conjugate_mean * mean[channel];
+					cur_slope[channel] = (Ip[channel] / win_area) - conjugate_mean * mean[channel];
 				}
 
 
@@ -284,6 +287,7 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 		Point shape;
 		shape << rows, cols;
 
+		// (Lp)_i
 		for (size_t j = 0; j < rows * cols; ++j)
 		{
 			Point center;
@@ -306,10 +310,6 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 			lap_product[j] = cur_window.getArea() * conjugate[j] - (slope_sum.dot(image.row(j)) + b_star_sum);
 		}
 
-		// TODO constraint_coeff * constraints_diag as variable
-//		vec conj_solution = laplacian_product(image, rows, cols, conjugate, sat_image[0], sat_image[1], sat_image[2], radius) +
-//								(constraint_coeff * (constraints_diag * conjugate));
-
 		vec conj_solution = lap_product +
 							(constraint_coeff * (constraints_diag * conjugate));
 
@@ -318,7 +318,7 @@ Eigen::VectorXd CGLaplacianSolver(Eigen::MatrixXd &image,
 		residual -= alpha * conj_solution;
 
 		std::cout << i << std::endl << std::endl;
-		if (i == 10)
+		if (i == iterations)
 			break;
 
 		if (residual.norm() < eps)
