@@ -3,15 +3,15 @@
 
 #include <Eigen/Core>
 #include <utility>
-
-typedef Eigen::Vector2i Point;
+#include <cmath>
 
 // TODO add copy/move constructors and operators
 // TODO const constraints for methods
 class ImageWindow {
+	typedef std::pair<int, int> Point;
 public:
 	ImageWindow() = default;
-	ImageWindow(const Point &image_shape, const Point &center, const size_t radius);
+	ImageWindow(const Point &image_shape, const Point &center, const int radius);
 
 	class iterator
 	{
@@ -31,25 +31,24 @@ public:
 
 	inline iterator begin() { return iterator(m_origin_bound, m_origin_bound, m_end_bound); }
 	inline iterator end() {
-		Point end_position;
-		end_position << m_end_bound[0], m_origin_bound[1];
-		return iterator(end_position, m_origin_bound, m_end_bound);
+		return iterator({m_end_bound.first, m_origin_bound.second},
+				     m_origin_bound,
+				     m_end_bound);
 	}
 
 	bool inBounds(const Point &coord);
 	size_t getArea(void);
 
-	inline size_t flatCoords(const Point &coord) { return m_im_shape[1] * coord[0] + coord[1]; }
 	inline Point getImageShape(void) { return m_im_shape; }
 	inline Point getCenter(void) { return m_center; }
-	inline size_t getRadius(void) { return m_radius; }
+	inline int getRadius(void) { return m_radius; }
 	inline Point getOriginBound(void) { return m_origin_bound; }
 	inline Point getEndBound(void) { return m_end_bound; }
 
 private:
 	// m_end_bound not included
 	Point m_im_shape, m_center, m_origin_bound, m_end_bound;
-	size_t m_radius;
+	int m_radius;
 };
 
 

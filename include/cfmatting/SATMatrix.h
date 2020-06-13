@@ -11,7 +11,7 @@ public:
 	SATMatrix(const Eigen::MatrixXd &matrix);
 
 	double windowSum(const std::pair<size_t, size_t> &origin,
-				     const std::pair<size_t, size_t> &end);
+				     const std::pair<size_t, size_t> &end) const;
 
 	inline void print(void) { std::cout << m_sat << std::endl; }
 

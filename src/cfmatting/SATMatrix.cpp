@@ -20,7 +20,7 @@ SATMatrix::SATMatrix(const Eigen::MatrixXd &matrix) {
 
 
 double SATMatrix::windowSum(const std::pair<size_t, size_t> &origin,
-						    const std::pair<size_t, size_t> &end) {
+						    const std::pair<size_t, size_t> &end) const {
 	size_t end_row = end.first, end_col = end.second,
 		   orig_row = origin.first, orig_col = origin.second;
 	double sum = m_sat(end_row, end_col);
