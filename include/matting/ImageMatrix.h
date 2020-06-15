@@ -12,6 +12,10 @@ public:
     ImageMatrix(const size_t& width,
                 const size_t& height,
                 const size_t& num_components);
+    ImageMatrix(const Eigen::MatrixXd& matrix);
+	ImageMatrix(const Eigen::VectorXd& matrix,
+				const size_t& width,
+				const size_t& height);
     ~ImageMatrix();
 
     ImageMatrix(const ImageMatrix& other);
@@ -30,6 +34,9 @@ public:
 
 	void setAt(const size_t &row, const size_t &col, const size_t &component, const double val);
     double getAt(const size_t &row, const size_t &col, const size_t &component) const;
+
+    ImageMatrix grayscale() const;
+	void expandColorspace();
 
     void toImageFormat();
     inline void normalize() { m_colormap /= KMax_brightness; };

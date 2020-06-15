@@ -4,63 +4,72 @@
 #include "include/matting/ImageMatrix.h"
 #include "include/matting/CGMattingSolver.h"
 #include "include/io/imageIO.h"
+#include "include/timer/timer.h"
 
 int main(int argc, char* argv[])
 {
-	std::string file_path = "image_apple.jpg";
-	FILE *in_file;
-	if ((in_file = fopen(file_path.c_str(), "rb")) == nullptr) {
-		std::cout << "Cannot open file " << file_path << std::endl;
-		return -1;
-	}
-	ImageMatrix im = read_jpeg(in_file);
-	fclose(in_file);
+	const size_t KKernel_radius = 20,
+				 KIterations = 20,
+				 KOutput_quality = 100;
+	const double KReg_param = 0.01;
 
-	file_path = "trimap_apple.jpg";
-	if ((in_file = fopen(file_path.c_str(), "rb")) == nullptr) {
-		std::cout << "Cannot open file " << file_path << std::endl;
-		return -1;
-	}
-	ImageMatrix trimap_buffer = read_jpeg(in_file);
-	fclose(in_file);
-
-	ImageMatrix trimap(trimap_buffer.width(), trimap_buffer.height(), 1);
-	for (size_t row = 0; row < trimap_buffer.height(); ++row)
+	if (argc != 4)
 	{
-		for (size_t col = 0; col < trimap_buffer.width(); ++col)
-		{
-			trimap.setAt(row, col, 0, trimap_buffer.getAt(row, col, 0));
-		}
+		std::cout << "wrong number of arguments" << std::endl;
+		return 0;
+	}
+
+	std::string image_path = argv[1],
+				trimap_path = argv[2],
+				output_path= argv[3];
+
+	ImageMatrix im, trimap;
+	try
+	{
+		std::cout << "Image loading..." << std::endl;
+		im = img_read(image_path);
+		trimap = img_read(trimap_path).grayscale();
+	} catch (const std::exception& e)
+	{
+		std::cout << e.what() << std::endl;
+		return 0;
 	}
 
 	im.normalize();
 	trimap.normalize();
 
-	CGMattingSolver solver(im, trimap, 20);
-	solver.setRegParameter(0.001);
-	auto alpha = solver.alphaMatting(20);
-
-	ImageMatrix alpha_image(im.width(), im.height(), 3);
-	for (size_t row = 0; row < im.height(); ++row)
+	std::cout << "Solver init..." << std::endl;
+	auto start_time = get_current_time_fenced();
+	Eigen::VectorXd alpha;
+	CGMattingSolver solver(im, trimap, KKernel_radius);
+	solver.setRegParameter(KReg_param);
+	try
 	{
-		for (size_t col = 0; col < im.width(); ++col)
-		{
-			alpha_image.setAt(row, col, 0, alpha[im.width() * row + col]);
-			alpha_image.setAt(row, col, 1, alpha[im.width() * row + col]);
-			alpha_image.setAt(row, col, 2, alpha[im.width() * row + col]);
-		}
+		std::cout << "Matting..." << std::endl;
+		alpha = solver.alphaMatting(KIterations);
+	} catch (const std::exception& e)
+	{
+		std::cout << e.what() << std::endl;
+		return 0;
 	}
+	auto cur_time = get_current_time_fenced();
+	std::cout << "Matting time total: " << to_us(cur_time - start_time)
+	          << "ms" << std::endl;
+
+	ImageMatrix alpha_image(alpha, im.width(), im.height());
+	alpha_image.expandColorspace();
+	alpha_image.expandColorspace();
 
 	alpha_image.toImageFormat();
-
-	if ((in_file = fopen("output.jpg", "wb")) == nullptr) {
-		std::cout << "Cannot create file " << file_path << std::endl;
-		return -1;
+	try
+	{
+		std::cout << "Alpha mate saving..." << std::endl;
+		img_write(output_path, alpha_image, KOutput_quality);
+	} catch (const std::exception& e)
+	{
+		std::cout << e.what() << std::endl;
+		return 0;
 	}
-
-	write_jpeg(in_file, alpha_image, 100);
-
-	fclose(in_file);
 
 	return 0;
 }

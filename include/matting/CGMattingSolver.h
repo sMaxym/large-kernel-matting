@@ -1,11 +1,12 @@
 #ifndef CFIMAGEMATTING_CGMATTINGSOLVER_H
 #define CFIMAGEMATTING_CGMATTINGSOLVER_H
 
+#include <iostream>
 #include <utility>
 #include <exception>
 #include <vector>
-#include <Eigen/SparseCore>
 #include <Eigen/LU>
+#include <Eigen/SparseCore>
 
 #include "ImageMatrix.h"
 #include "ImageWindow.h"
@@ -41,11 +42,14 @@ private:
 
 	void initConstraints();
 	void initImageCovariance();
+	Eigen::MatrixXd calcCov(const size_t row, const size_t col);
 	void initImageSAT();
 	void CGIterate();
 	std::vector<SATMatrix> calcSlopeAndBiasSAT(const std::vector<SATMatrix>& Ip_sat,
 												const SATMatrix& conjugate_sat);
 	Vector laplacianProduct(const std::vector<SATMatrix>& slope_sat, const SATMatrix& bias_sat);
+
+	inline double handleZeroDiv(double value) { return value == 0 ? value + KThreshold : value; }
 };
 
 #endif

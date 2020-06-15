@@ -36,13 +36,11 @@ void CGMattingSolver::initConstraints()
 void CGMattingSolver::initImageSAT()
 {
 	size_t channels = m_image.numComponents();
-	MatrixXdRow image_channel;
 	m_image_sat.clear();
 	for (size_t channel = 0; channel < channels; ++channel)
 	{
-		// TODO check if copying
 		auto channel_data = m_image.colormap().col(channel).data();
-		image_channel = Eigen::Map<MatrixXdRow>(channel_data, m_image.height(), m_image.width());
+		MatrixXdRow image_channel = Eigen::Map<MatrixXdRow>(channel_data, m_image.height(), m_image.width());
 		m_image_sat.emplace_back(image_channel);
 	}
 }
@@ -51,40 +49,42 @@ void CGMattingSolver::initImageCovariance()
 {
 	m_win_cov = std::vector<std::vector<Eigen::MatrixXd>>(m_image.height(),
 														  std::vector<Eigen::MatrixXd>(m_image.width()));
-	size_t rows = m_image.height(), cols = m_image.width(),
-			channels = m_image.numComponents();
+	size_t rows = m_image.height(), cols = m_image.width();
 	for (size_t row = 0; row < rows; ++row)
 	{
 		for (size_t col = 0; col < cols; ++col)
 		{
-			Vector mean(channels);
-			Point shape, center;
-			center = { row, col };
-			shape = { rows, cols };
-			ImageWindow cur_window(shape, center, m_kernel_radius);
-			size_t win_area = cur_window.getArea(), index = 0;
-			Eigen::MatrixXd observations(win_area, channels);
-
-			Point left_top, right_bottom;
-			left_top = cur_window.getOriginBound();
-			right_bottom = {cur_window.getEndBound().first - 1,
-							cur_window.getEndBound().second - 1 };
-
-			for (size_t channel = 0; channel < channels; ++channel)
-			{
-				mean[channel] = m_image_sat[channel].windowSum(left_top, right_bottom) / win_area;
-			}
-			for (auto &coord: cur_window)
-			{
-				size_t flat_coord = m_image.flatCoords(coord);
-				observations.row(index) = m_image.colormap().row(flat_coord);
-				++index;
-			}
-			auto deviation = observations - Vector::Ones(win_area) * mean.transpose();
-			Eigen::Matrix3d covariance = deviation.transpose() * deviation / (win_area - 1);
-			m_win_cov[row][col] = covariance;
+			m_win_cov[row][col] = calcCov(row, col);
 		}
 	}
+}
+
+Eigen::MatrixXd CGMattingSolver::calcCov(const size_t row, const size_t col)
+{
+	size_t channels = m_image.numComponents();
+	size_t rows = m_image.height(), cols = m_image.width();
+	Vector mean(channels);
+	ImageWindow cur_window({rows, cols}, {row, col}, m_kernel_radius);
+	size_t win_area = cur_window.getArea(), index = 0;
+	Eigen::MatrixXd observations(win_area, channels);
+
+	Point left_top, right_bottom;
+	left_top = cur_window.getOriginBound();
+	right_bottom = cur_window.getEndBoundIncl();
+
+	for (size_t channel = 0; channel < channels; ++channel)
+	{
+		mean[channel] = m_image_sat[channel].windowSum(left_top, right_bottom) / win_area;
+	}
+	for (auto &coord: cur_window)
+	{
+		size_t flat_coord = m_image.flatCoords(coord);
+		observations.row(index) = m_image.colormap().row(flat_coord);
+		++index;
+	}
+	auto deviation = observations - Vector::Ones(win_area) * mean.transpose();
+	Eigen::Matrix3d covariance = deviation.transpose() * deviation / (win_area - 1);
+	return covariance;
 }
 
 CGMattingSolver::Vector CGMattingSolver::alphaMatting(size_t iterations, double precision)
@@ -94,6 +94,7 @@ CGMattingSolver::Vector CGMattingSolver::alphaMatting(size_t iterations, double 
 	m_conjugate = m_def_constraint;
 	for (size_t iter = 0; iter < iterations; ++iter)
 	{
+		std::cout << "Iteration: #" << iter << std::endl;
 		CGIterate();
 		if (m_residual.norm() < precision) break;
 	}
@@ -122,10 +123,10 @@ void CGMattingSolver::CGIterate()
 	Vector Lp = laplacianProduct(slope_sat, bias_sat);
 
 	Vector coeff_product = Lp + m_constraint * (m_constraint_mat * m_conjugate);
-	double alpha = m_residual.dot(m_residual) / coeff_product.dot(m_conjugate);
+	double alpha = m_residual.dot(m_residual) / handleZeroDiv(coeff_product.dot(m_conjugate));
 	m_cg_solution += alpha * m_conjugate;
 	m_residual -= alpha * coeff_product;
-	double beta = m_residual.dot(m_residual) / residual_prev.dot(residual_prev);
+	double beta = m_residual.dot(m_residual) / handleZeroDiv(residual_prev.dot(residual_prev));
 	m_conjugate = m_residual + beta * m_conjugate;
 }
 
@@ -151,8 +152,7 @@ std::vector<SATMatrix> CGMattingSolver::calcSlopeAndBiasSAT(const std::vector<SA
 
 			Point left_top, right_bottom;
 			left_top = cur_window.getOriginBound();
-			right_bottom = {cur_window.getEndBound().first - 1,
-							cur_window.getEndBound().second - 1 };
+			right_bottom = cur_window.getEndBoundIncl();
 
 			conjugate_mean = conjugate_sat.windowSum(left_top, right_bottom) / win_area;
 			for (size_t channel = 0; channel < channels; ++channel)
@@ -181,7 +181,7 @@ CGMattingSolver::laplacianProduct(const std::vector<SATMatrix> &slope_sat, const
 {
 	size_t rows = m_image.height(), cols = m_image.width();
 	Vector lap_product(rows * cols);
-	for (size_t i = 0; i < lap_product.size(); ++i)
+	for (int i = 0; i < lap_product.size(); ++i)
 	{
 		Vector slope_sum(m_image.numComponents());
 		double b_star_sum;
@@ -190,12 +190,10 @@ CGMattingSolver::laplacianProduct(const std::vector<SATMatrix> &slope_sat, const
 		center = m_image.coords2D(i);
 		shape = { rows, cols };
 		ImageWindow cur_window(shape, center, m_kernel_radius);
-		size_t win_area = cur_window.getArea();
 
 		Point left_top, right_bottom;
 		left_top = cur_window.getOriginBound();
-		right_bottom = {cur_window.getEndBound().first - 1,
-						cur_window.getEndBound().second - 1 };
+		right_bottom = cur_window.getEndBoundIncl();
 		for (size_t channel = 0; channel < m_image.numComponents(); ++channel)
 		{
 			slope_sum[channel] = slope_sat[channel].windowSum(left_top, right_bottom);

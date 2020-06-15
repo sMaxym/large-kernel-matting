@@ -76,3 +76,41 @@ void write_jpeg(FILE *jpeg_file, const ImageMatrix& image, const size_t quality)
 	delete[] buffer[0];
 }
 
+ImageMatrix img_read(const std::string& path)
+{
+	FILE *data_file;
+	if ((data_file = fopen(path.c_str(), "rb")) == nullptr)
+	{
+		throw std::runtime_error("cannot find jpeg");
+	}
+
+	ImageMatrix img;
+	try
+	{
+		img = read_jpeg(data_file);
+	} catch (const std::exception& e)
+	{
+		fclose(data_file);
+		throw;
+	}
+	fclose(data_file);
+	return img;
+}
+
+void img_write(const std::string& path, const ImageMatrix& img, int quality)
+{
+	FILE *data_file;
+	if ((data_file = fopen(path.c_str(), "wb")) == nullptr)
+	{
+		throw std::runtime_error("cannot find or create file");
+	}
+	try
+	{
+		write_jpeg(data_file, img, quality);
+	} catch (const std::exception& e)
+	{
+		fclose(data_file);
+		throw;
+	}
+	fclose(data_file);
+}

@@ -13,6 +13,19 @@ ImageMatrix::ImageMatrix(const size_t& width,
     updateNormalized();
 }
 
+ImageMatrix::ImageMatrix(const Eigen::MatrixXd &matrix)
+	: ImageMatrix(matrix.cols(), matrix.rows(), 1)
+{
+	for (size_t row = 0; row < m_height; ++row)
+	{
+		for (size_t col = 0; col < m_width; ++col)
+		{
+			setAt(row, col, 0, matrix.coeffRef(row, col));
+		}
+	}
+	updateNormalized();
+}
+
 ImageMatrix::~ImageMatrix() = default;
 
 ImageMatrix::ImageMatrix(const ImageMatrix &other)
@@ -67,7 +80,6 @@ void ImageMatrix::toImageFormat()
 	auto min_matrix = Eigen::MatrixXd::Ones(m_width * m_height, m_comps_n) * m_colormap.minCoeff();
 	m_colormap = m_colormap - min_matrix;
 	m_colormap  = m_colormap  / m_colormap.maxCoeff() * KMax_brightness;
-	// TODO round
 }
 
 void ImageMatrix::updateNormalized()
@@ -92,4 +104,34 @@ void ImageMatrix::assertCoords(size_t row, size_t col, size_t comp) const
 	{
 		throw std::invalid_argument("component does not exist");
 	}
+}
+
+ImageMatrix ImageMatrix::grayscale() const
+{
+	ImageMatrix gray(m_width, m_height, 1);
+	double red, green, blue, brightness;
+	for (size_t row = 0; row < m_height; ++row)
+	{
+		for (size_t col = 0; col < m_width; ++col)
+		{
+			red = getAt(row, col, 0);
+			green = getAt(row, col, 1);
+			blue = getAt(row, col, 2);
+			brightness = 0.3 * red + 0.59 * green + 0.11 * blue;
+			gray.setAt(row, col, 0, brightness);
+		}
+	}
+	return gray;
+}
+
+void ImageMatrix::expandColorspace()
+{
+	m_colormap.conservativeResize(m_height * m_width, ++m_comps_n);
+	m_colormap.col(m_comps_n - 1) = m_colormap.col(0);
+}
+
+ImageMatrix::ImageMatrix(const Eigen::VectorXd &matrix, const size_t &width, const size_t &height)
+	: ImageMatrix(width, height, 1)
+{
+	m_colormap = matrix;
 }

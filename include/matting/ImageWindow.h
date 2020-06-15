@@ -50,6 +50,7 @@ public:
 	inline int getRadius() { return m_radius; }
 	inline Point getOriginBound() { return m_origin_bound; }
 	inline Point getEndBound() { return m_end_bound; }
+	inline Point getEndBoundIncl() { return {m_end_bound.first - 1, m_end_bound.second - 1}; }
 
 private:
 	Point m_im_shape, m_center, m_origin_bound, m_end_bound; // end bound not included
