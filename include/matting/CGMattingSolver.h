@@ -2,10 +2,10 @@
 #define CFIMAGEMATTING_CGMATTINGSOLVER_H
 
 #include <utility>
+#include <exception>
 #include <vector>
 #include <Eigen/SparseCore>
 #include <Eigen/LU>
-
 
 #include "ImageMatrix.h"
 #include "ImageWindow.h"
@@ -16,7 +16,10 @@ class CGMattingSolver {
 	typedef std::pair<int, int> Point;
 	typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MatrixXdRow;
 public:
-	CGMattingSolver(ImageMatrix  image, ImageMatrix  trimap, const size_t kernel_radius=10);
+	CGMattingSolver(const ImageMatrix& image, const ImageMatrix& trimap, const size_t kernel_radius=10);
+
+	CGMattingSolver(const CGMattingSolver& other) = delete;
+	CGMattingSolver& operator=(const CGMattingSolver& other) = delete;
 
 	Vector alphaMatting(const size_t iterations=20, const double precision=1.e-6);
 
@@ -25,6 +28,8 @@ public:
 
 
 private:
+	const double KThreshold = 0.001;
+
 	ImageMatrix m_image, m_trimap;
 	std::vector<SATMatrix> m_image_sat;
 	Eigen::SparseMatrix<double> m_constraint_mat;
@@ -34,9 +39,10 @@ private:
 	size_t m_kernel_radius;
 
 
-	void calcImageSAT(void);
-	void CGIterate(void);
-	void calcImageCovariance(void);
+	void initConstraints();
+	void initImageCovariance();
+	void initImageSAT();
+	void CGIterate();
 	std::vector<SATMatrix> calcSlopeAndBiasSAT(const std::vector<SATMatrix>& Ip_sat,
 												const SATMatrix& conjugate_sat);
 	Vector laplacianProduct(const std::vector<SATMatrix>& slope_sat, const SATMatrix& bias_sat);

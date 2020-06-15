@@ -1,14 +1,13 @@
 #include <iostream>
 #include <string>
-#include <fstream>
 
-#include "include/cfmatting/ImageMatrix.h"
-#include "include/cfmatting/CGMattingSolver.h"
+#include "include/matting/ImageMatrix.h"
+#include "include/matting/CGMattingSolver.h"
 #include "include/io/imageIO.h"
 
 int main(int argc, char* argv[])
 {
-	std::string file_path = "image.jpg";
+	std::string file_path = "image_apple.jpg";
 	FILE *in_file;
 	if ((in_file = fopen(file_path.c_str(), "rb")) == nullptr) {
 		std::cout << "Cannot open file " << file_path << std::endl;
@@ -17,7 +16,7 @@ int main(int argc, char* argv[])
 	ImageMatrix im = read_jpeg(in_file);
 	fclose(in_file);
 
-	file_path = "trimap.jpg";
+	file_path = "trimap_apple.jpg";
 	if ((in_file = fopen(file_path.c_str(), "rb")) == nullptr) {
 		std::cout << "Cannot open file " << file_path << std::endl;
 		return -1;
@@ -37,21 +36,31 @@ int main(int argc, char* argv[])
 	im.normalize();
 	trimap.normalize();
 
-	CGMattingSolver solver(im, trimap);
-	auto alpha = solver.alphaMatting(10);
+	CGMattingSolver solver(im, trimap, 20);
+	solver.setRegParameter(0.001);
+	auto alpha = solver.alphaMatting(20);
 
-	std::ofstream out_fs("output_new.txt", std::fstream::out);
-
+	ImageMatrix alpha_image(im.width(), im.height(), 3);
 	for (size_t row = 0; row < im.height(); ++row)
 	{
 		for (size_t col = 0; col < im.width(); ++col)
 		{
-			out_fs << alpha[im.width() * row + col] << " ";
+			alpha_image.setAt(row, col, 0, alpha[im.width() * row + col]);
+			alpha_image.setAt(row, col, 1, alpha[im.width() * row + col]);
+			alpha_image.setAt(row, col, 2, alpha[im.width() * row + col]);
 		}
-		out_fs << std::endl;
 	}
 
-	out_fs.close();
+	alpha_image.toImageFormat();
+
+	if ((in_file = fopen("output.jpg", "wb")) == nullptr) {
+		std::cout << "Cannot create file " << file_path << std::endl;
+		return -1;
+	}
+
+	write_jpeg(in_file, alpha_image, 100);
+
+	fclose(in_file);
 
 	return 0;
 }

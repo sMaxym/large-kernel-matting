@@ -3,7 +3,7 @@
 
 #include <cstdio>
 #include <jpeglib.h>
-#include "./../cfmatting/ImageMatrix.h"
+#include "./../matting/ImageMatrix.h"
 
 ImageMatrix read_jpeg(FILE *jpeg_file);
 void write_jpeg(FILE *jpeg_file, const ImageMatrix& image, size_t quality=5);

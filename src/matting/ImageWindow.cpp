@@ -1,4 +1,4 @@
-#include "../../include/cfmatting/ImageWindow.h"
+#include "../../include/matting/ImageWindow.h"
 
 ImageWindow::ImageWindow(const Point &image_shape, const Point &center, int radius)
 {
@@ -10,6 +10,31 @@ ImageWindow::ImageWindow(const Point &image_shape, const Point &center, int radi
 					 std::max<int>(0, m_center.second - m_radius) };
 	m_end_bound = { std::min<int>(image_shape.first, m_center.first + m_radius + 1),
 					std::min<int>(image_shape.second, m_center.second + m_radius + 1)};
+}
+
+ImageWindow::ImageWindow(const ImageWindow& other)
+{
+	m_im_shape = other.m_im_shape;
+	m_center = other.m_center;
+	m_origin_bound = other.m_origin_bound;
+	m_end_bound = other.m_end_bound;
+	m_radius = other.m_radius;
+}
+
+ImageWindow& ImageWindow::operator=(const ImageWindow& other)
+{
+	ImageWindow new_win(other);
+	swap(new_win);
+	return *this;
+};
+
+void ImageWindow::swap(ImageWindow& other)
+{
+	std::swap(m_im_shape, other.m_im_shape);
+	std::swap(m_center, other.m_center);
+	std::swap(m_origin_bound, other.m_origin_bound);
+	std::swap(m_end_bound, other.m_end_bound);
+	std::swap(m_radius, other.m_radius);
 }
 
 bool ImageWindow::inBounds(const Point &coord)

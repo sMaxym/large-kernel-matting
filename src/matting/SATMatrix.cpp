@@ -1,4 +1,4 @@
-#include "../../include/cfmatting/SATMatrix.h"
+#include "../../include/matting/SATMatrix.h"
 
 SATMatrix::SATMatrix(const Eigen::MatrixXd &matrix) {
 	size_t n_rows = matrix.rows(), n_cols = matrix.cols();
@@ -18,6 +18,19 @@ SATMatrix::SATMatrix(const Eigen::MatrixXd &matrix) {
 	}
 }
 
+SATMatrix::SATMatrix(const SATMatrix &other) : m_sat(other.m_sat) { }
+
+SATMatrix& SATMatrix::operator=(const SATMatrix& other)
+{
+	SATMatrix new_sat(other);
+	swap(new_sat);
+	return *this;
+}
+
+void SATMatrix::swap(SATMatrix& other)
+{
+	std::swap(m_sat, other.m_sat);
+}
 
 double SATMatrix::windowSum(const std::pair<size_t, size_t> &origin,
 						    const std::pair<size_t, size_t> &end) const {

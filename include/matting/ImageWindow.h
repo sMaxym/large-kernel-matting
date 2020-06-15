@@ -3,6 +3,7 @@
 
 #include <Eigen/Core>
 #include <utility>
+#include <algorithm>
 #include <cmath>
 
 // TODO add copy/move constructors and operators
@@ -11,13 +12,18 @@ class ImageWindow {
 	typedef std::pair<int, int> Point;
 public:
 	ImageWindow() = default;
-	ImageWindow(const Point &image_shape, const Point &center, const int radius);
+	ImageWindow(const Point &image_shape, const Point &center, int radius);
+
+	ImageWindow(const ImageWindow& other);
+	ImageWindow& operator=(const ImageWindow& other);
+
+	void swap(ImageWindow& other);
 
 	class iterator
 	{
 	public:
 		iterator(Point ptr, Point upper_b, Point lower_b)
-			: m_position(ptr), m_upper_b(upper_b), m_lower_b(lower_b) { }
+			: m_position(std::move(ptr)), m_upper_b(std::move(upper_b)), m_lower_b(std::move(lower_b)) { }
 		~iterator();
 		// TODO postfix iterator increment
 		iterator operator++();
@@ -37,19 +43,17 @@ public:
 	}
 
 	bool inBounds(const Point &coord);
-	size_t getArea(void);
+	size_t getArea();
 
-	inline Point getImageShape(void) { return m_im_shape; }
-	inline Point getCenter(void) { return m_center; }
-	inline int getRadius(void) { return m_radius; }
-	inline Point getOriginBound(void) { return m_origin_bound; }
-	inline Point getEndBound(void) { return m_end_bound; }
+	inline Point getImageShape() { return m_im_shape; }
+	inline Point getCenter() { return m_center; }
+	inline int getRadius() { return m_radius; }
+	inline Point getOriginBound() { return m_origin_bound; }
+	inline Point getEndBound() { return m_end_bound; }
 
 private:
-	// m_end_bound not included
-	Point m_im_shape, m_center, m_origin_bound, m_end_bound;
+	Point m_im_shape, m_center, m_origin_bound, m_end_bound; // end bound not included
 	int m_radius;
 };
-
 
 #endif
