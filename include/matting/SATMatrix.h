@@ -3,7 +3,6 @@
 
 #include <Eigen/Core>
 
-// TODO template Eigen matrix
 class SATMatrix {
 public:
 	SATMatrix() = default;
@@ -18,10 +17,9 @@ public:
 				     const std::pair<size_t, size_t> &end) const;
 
 private:
-	// TODO T** type m_sat
 	Eigen::MatrixXd m_sat;
 };
 
 
 
-#endif //CFIMAGEMATTING_SATMATRIX_H
+#endif

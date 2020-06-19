@@ -24,8 +24,8 @@ public:
 
 	Vector alphaMatting(const size_t iterations=20, const double precision=1.e-6);
 
-	inline void setConstraintCoeff(const double coeff) { m_constraint = coeff; }
-	inline void setRegParameter(const double eps) { m_reg_param = eps; }
+	void setConstraintCoeff(const double coeff) { m_constraint = coeff; }
+	void setRegParameter(const double eps) { m_reg_param = eps; }
 
 
 private:
@@ -49,7 +49,7 @@ private:
 												const SATMatrix& conjugate_sat);
 	Vector laplacianProduct(const std::vector<SATMatrix>& slope_sat, const SATMatrix& bias_sat);
 
-	inline double handleZeroDiv(double value) { return value == 0 ? value + KThreshold : value; }
+	double handleZeroDiv(double value) { return value == 0 ? value + KThreshold : value; }
 };
 
 #endif

@@ -37,15 +37,14 @@ void ImageWindow::swap(ImageWindow& other)
 	std::swap(m_radius, other.m_radius);
 }
 
-bool ImageWindow::inBounds(const Point &coord)
+bool ImageWindow::inBounds(const Point &coord) const
 {
-	// TODO DRY
 	if (coord.first >= m_im_shape.first || coord.first < 0)
 		return false;
 	return !(coord.second >= m_im_shape.second || coord.second < 0);
 }
 
-size_t ImageWindow::getArea()
+size_t ImageWindow::getArea() const
 {
 	Point window_shape = {m_end_bound.first - m_origin_bound.first,
 						  m_end_bound.second - m_origin_bound.second};

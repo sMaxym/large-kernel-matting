@@ -6,8 +6,6 @@
 #include <algorithm>
 #include <cmath>
 
-// TODO add copy/move constructors and operators
-// TODO const constraints for methods
 class ImageWindow {
 	typedef std::pair<int, int> Point;
 public:
@@ -25,7 +23,6 @@ public:
 		iterator(Point ptr, Point upper_b, Point lower_b)
 			: m_position(std::move(ptr)), m_upper_b(std::move(upper_b)), m_lower_b(std::move(lower_b)) { }
 		~iterator();
-		// TODO postfix iterator increment
 		iterator operator++();
 		inline Point &operator*() { return m_position; }
 		inline Point *operator->() { return &m_position; }
@@ -35,22 +32,22 @@ public:
 		Point m_position, m_upper_b, m_lower_b;
 	};
 
-	inline iterator begin() { return iterator(m_origin_bound, m_origin_bound, m_end_bound); }
-	inline iterator end() {
+	iterator begin() { return iterator(m_origin_bound, m_origin_bound, m_end_bound); }
+	iterator end() {
 		return iterator({m_end_bound.first, m_origin_bound.second},
 				     m_origin_bound,
 				     m_end_bound);
 	}
 
-	bool inBounds(const Point &coord);
-	size_t getArea();
+	bool inBounds(const Point &coord) const;
+	size_t getArea() const;
 
-	inline Point getImageShape() { return m_im_shape; }
-	inline Point getCenter() { return m_center; }
-	inline int getRadius() { return m_radius; }
-	inline Point getOriginBound() { return m_origin_bound; }
-	inline Point getEndBound() { return m_end_bound; }
-	inline Point getEndBoundIncl() { return {m_end_bound.first - 1, m_end_bound.second - 1}; }
+	int getRadius() { return m_radius; }
+	Point getImageShape() { return m_im_shape; }
+	Point getCenter() { return m_center; }
+	Point getOriginBound() { return m_origin_bound; }
+	Point getEndBound() { return m_end_bound; }
+	Point getEndBoundIncl() { return {m_end_bound.first - 1, m_end_bound.second - 1}; }
 
 private:
 	Point m_im_shape, m_center, m_origin_bound, m_end_bound; // end bound not included

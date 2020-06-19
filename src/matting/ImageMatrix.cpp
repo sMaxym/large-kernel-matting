@@ -1,8 +1,8 @@
 #include "../../include/matting/ImageMatrix.h"
 
-ImageMatrix::ImageMatrix(const size_t& width,
-                         const size_t& height,
-                         const size_t& num_components)
+ImageMatrix::ImageMatrix(const size_t width,
+                         const size_t height,
+                         const size_t num_components)
         : m_width(width), m_height(height), m_comps_n(num_components)
 {
 	if (width == 0 || height == 0)
@@ -10,7 +10,6 @@ ImageMatrix::ImageMatrix(const size_t& width,
 		throw std::invalid_argument("zero size");
 	}
     m_colormap = Eigen::MatrixXd(m_height * m_width, m_comps_n);
-    updateNormalized();
 }
 
 ImageMatrix::ImageMatrix(const Eigen::MatrixXd &matrix)
@@ -23,7 +22,6 @@ ImageMatrix::ImageMatrix(const Eigen::MatrixXd &matrix)
 			setAt(row, col, 0, matrix.coeffRef(row, col));
 		}
 	}
-	updateNormalized();
 }
 
 ImageMatrix::~ImageMatrix() = default;
@@ -34,12 +32,12 @@ ImageMatrix::ImageMatrix(const ImageMatrix &other)
     m_height = other.m_height;
     m_comps_n = other.m_comps_n;
     m_colormap = other.m_colormap;
-    m_is_normalized = other.m_is_normalized;
 }
 
-ImageMatrix &ImageMatrix::operator= (ImageMatrix other)
+ImageMatrix& ImageMatrix::operator=(const ImageMatrix& other)
 {
-	swap(*this, other);
+	ImageMatrix other_copy = other;
+	swap(*this, other_copy);
 	return *this;
 }
 
@@ -49,28 +47,24 @@ void ImageMatrix::swap(ImageMatrix &first, ImageMatrix &second)
 	std::swap(first.m_height, second.m_height);
 	std::swap(first.m_comps_n, second.m_comps_n);
 	std::swap(first.m_colormap, second.m_colormap);
-	std::swap(first.m_is_normalized, second.m_is_normalized);
 }
 
-ImageMatrix::Point ImageMatrix::coords2D(const size_t &flat_coords) const
+ImageMatrix::Point ImageMatrix::coords2D(const size_t flat_coords) const
 {
 	size_t row, col;
 	row = flat_coords / m_width;
 	col = flat_coords % m_width;
-	assertCoords(row, col, 0);
 	return ImageMatrix::Point(row, col);
 }
 
-void ImageMatrix::setAt(const size_t &row, const size_t &col, const size_t &component, const double val)
+void ImageMatrix::setAt(const size_t row, const size_t col, const size_t component, const double val)
 {
-	assertCoords(row, col, component);
 	size_t flat = flatCoords(row, col);
 	m_colormap(flat, component) = val;
 }
 
-double ImageMatrix::getAt(const size_t &row, const size_t &col, const size_t &component) const
+double ImageMatrix::getAt(const size_t row, const size_t col, const size_t component) const
 {
-	assertCoords(row, col, component);
 	size_t flat = flatCoords(row, col);
 	return m_colormap(flat, component);
 }
@@ -82,28 +76,10 @@ void ImageMatrix::toImageFormat()
 	m_colormap  = m_colormap  / m_colormap.maxCoeff() * KMax_brightness;
 }
 
-void ImageMatrix::updateNormalized()
+bool ImageMatrix::isNormalized() const
 {
-	m_is_normalized = (1. >= m_colormap.array() &&
-					   m_colormap.array() >= 0.).all();
-}
-
-bool ImageMatrix::isNormalized()
-{
-	updateNormalized();
-	return m_is_normalized;
-}
-
-void ImageMatrix::assertCoords(size_t row, size_t col, size_t comp) const
-{
-	if (row >= m_height || col >= m_width)
-	{
-		throw std::invalid_argument("coords not in range of image");
-	}
-	if (comp >= m_comps_n)
-	{
-		throw std::invalid_argument("component does not exist");
-	}
+	return (1. >= m_colormap.array() &&
+			m_colormap.array() >= 0.).all();
 }
 
 ImageMatrix ImageMatrix::grayscale() const
@@ -130,7 +106,7 @@ void ImageMatrix::expandColorspace()
 	m_colormap.col(m_comps_n - 1) = m_colormap.col(0);
 }
 
-ImageMatrix::ImageMatrix(const Eigen::VectorXd &matrix, const size_t &width, const size_t &height)
+ImageMatrix::ImageMatrix(const Eigen::VectorXd &matrix, const size_t width, const size_t height)
 	: ImageMatrix(width, height, 1)
 {
 	m_colormap = matrix;
