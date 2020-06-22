@@ -1,10 +1,14 @@
 #include <iostream>
 #include <string>
+#include <fstream>
+#include <cmath>
 
 #include "include/matting/ImageMatrix.h"
 #include "include/matting/CGMattingSolver.h"
 #include "include/io/imageIO.h"
 #include "include/timer/timer.h"
+
+void sigmoid_norming(ImageMatrix& image, double slope);
 
 int main(int argc, char* argv[])
 {
@@ -57,6 +61,10 @@ int main(int argc, char* argv[])
 	          << "ms" << std::endl;
 
 	ImageMatrix alpha_image(alpha, im.width(), im.height());
+	alpha_image.normalize();
+
+	sigmoid_norming(alpha_image, 10);
+
 	alpha_image.expandColorspace();
 	alpha_image.expandColorspace();
 
@@ -73,3 +81,17 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+
+void sigmoid_norming(ImageMatrix& image, const double slope)
+{
+	for (size_t row = 0; row < image.height(); ++row)
+	{
+		for (size_t col = 0; col < image.width(); ++col)
+		{
+			double value = image.getAt(row, col, 0);
+			value = 1 / (1 + std::exp(-slope * (value - 0.5)));
+			image.setAt(row, col, 0, value);
+		}
+	}
+}
+

@@ -29,7 +29,7 @@ public:
 
 
 private:
-	const double KThreshold = 0.001;
+	const double KThreshold = 0.01;
 
 	ImageMatrix m_image, m_trimap;
 	std::vector<SATMatrix> m_image_sat;

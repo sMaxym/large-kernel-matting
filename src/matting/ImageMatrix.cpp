@@ -111,3 +111,11 @@ ImageMatrix::ImageMatrix(const Eigen::VectorXd &matrix, const size_t width, cons
 {
 	m_colormap = matrix;
 }
+
+void ImageMatrix::normalize()
+{
+	double colors_min = m_colormap.minCoeff();
+	m_colormap -= colors_min * Eigen::MatrixXd::Ones(m_height, m_width);
+	double colors_max = m_colormap.maxCoeff();
+	m_colormap /= colors_max;
+}

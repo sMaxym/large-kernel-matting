@@ -6,7 +6,7 @@ CGMattingSolver::CGMattingSolver(const ImageMatrix& image, const ImageMatrix& tr
 	if (m_image.width() != m_trimap.width() ||
 	    m_image.height() != m_trimap.height())
 	{
-		throw std::invalid_argument("image and trimap different sizes");
+		throw std::invalid_argument("image and trimap are of different sizes");
 	}
 
 	m_image.normalizeIfNot();

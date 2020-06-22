@@ -39,7 +39,7 @@ public:
 	void expandColorspace();
 
     void toImageFormat();
-    void normalize() { m_colormap /= KMax_brightness; };
+    void normalize();
     void normalizeIfNot() { if (!isNormalized()) normalize(); }
 	bool isNormalized() const;
 
